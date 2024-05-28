@@ -185,7 +185,7 @@ int32_t cpu_get_num_math() {
 #endif
     return cpu_get_num_physical_cores();
 }
-
+#ifndef LLAMA_USE_SWIFT
 //
 // CLI argument parsing
 //
@@ -1246,11 +1246,13 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         gpt_params_print_usage(argc, argv, gpt_params());
         exit(0);
     }
+#ifndef LLAMA_USE_SWIFT
     if (arg == "--version") {
         fprintf(stderr, "version: %d (%s)\n", LLAMA_BUILD_NUMBER, LLAMA_COMMIT);
         fprintf(stderr, "built with %s for %s\n", LLAMA_COMPILER, LLAMA_BUILD_TARGET);
         exit(0);
     }
+#endif
     if (arg == "--random-prompt") {
         params.random_prompt = true;
         return true;
@@ -1301,6 +1303,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         );
         return true;
     }
+#ifndef LLAMA_USE_SWIFT
     if (arg == "-j" || arg == "--json-schema") {
         if (++i >= argc) {
             invalid_param = true;
@@ -1309,6 +1312,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
         sparams.grammar = json_schema_to_grammar(json::parse(argv[i]));
         return true;
     }
+#endif
     if (arg == "--override-kv") {
         if (++i >= argc) {
             invalid_param = true;
@@ -1347,7 +1351,7 @@ bool gpt_params_find_arg(int argc, char ** argv, const std::string & arg, gpt_pa
 
     return false;
 }
-
+#ifndef LLAMA_USE_SWIFT
 void gpt_params_print_usage(int /*argc*/, char ** argv, const gpt_params & params) {
     const llama_sampling_params & sparams = params.sparams;
 
@@ -1552,6 +1556,7 @@ void gpt_params_print_usage(int /*argc*/, char ** argv, const gpt_params & param
     log_print_usage();
 #endif // LOG_DISABLE_LOGS
 }
+#endif
 
 std::string gpt_params_get_system_info(const gpt_params & params) {
     std::ostringstream os;
@@ -1564,6 +1569,7 @@ std::string gpt_params_get_system_info(const gpt_params & params) {
 
     return os.str();
 }
+#endif
 
 //
 // String utils
