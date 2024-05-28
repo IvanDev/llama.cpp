@@ -2832,9 +2832,10 @@ void yaml_dump_string_multiline(FILE * stream, const char * prop_name, const cha
 void yaml_dump_non_result_info(FILE * stream, const gpt_params & params, const llama_context * lctx,
                                const std::string & timestamp, const std::vector<int> & prompt_tokens, const char * model_desc) {
     const llama_sampling_params & sparams = params.sparams;
-
+#ifndef LLAMA_USE_SWIFT
     fprintf(stream, "build_commit: %s\n",        LLAMA_COMMIT);
     fprintf(stream, "build_number: %d\n",        LLAMA_BUILD_NUMBER);
+#endif
     fprintf(stream, "cpu_has_arm_fma: %s\n",     ggml_cpu_has_arm_fma()     ? "true" : "false");
     fprintf(stream, "cpu_has_avx: %s\n",         ggml_cpu_has_avx()         ? "true" : "false");
     fprintf(stream, "cpu_has_avx_vnni: %s\n",    ggml_cpu_has_avx_vnni()    ? "true" : "false");

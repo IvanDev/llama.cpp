@@ -11,11 +11,15 @@ var sources = [
     "ggml-alloc.c",
     "ggml-backend.c",
     "ggml-quants.c",
+    "common/common.cpp",
+    "common/console.cpp",
+    "common/grammar-parser.cpp",
 ]
 
 var resources: [Resource] = []
 var linkerSettings: [LinkerSetting] = []
 var cSettings: [CSetting] =  [
+    .headerSearchPath("common"),
     .unsafeFlags(["-Wno-shorten-64-to-32", "-O3", "-DNDEBUG"]),
     .unsafeFlags(["-fno-objc-arc"]),
     // NOTE: NEW_LAPACK will required iOS version 16.4+
@@ -32,7 +36,8 @@ linkerSettings.append(.linkedFramework("Accelerate"))
 cSettings.append(
     contentsOf: [
         .define("GGML_USE_ACCELERATE"),
-        .define("GGML_USE_METAL")
+        .define("GGML_USE_METAL"),
+        .define("LLAMA_USE_SWIFT")
     ]
 )
 #endif
