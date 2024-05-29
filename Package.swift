@@ -14,7 +14,8 @@ var sources = [
     "common/common.cpp",
     "common/console.cpp",
     "common/grammar-parser.cpp",
-    "common/sampling.cpp"
+    "common/sampling.cpp",
+    "common-helper.cpp",
 ]
 
 var resources: [Resource] = []
