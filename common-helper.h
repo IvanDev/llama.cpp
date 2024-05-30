@@ -29,7 +29,30 @@
 extern "C" {
 #endif
 
-LLAMA_API void *llm_init_sampling_context();
+typedef struct llm_sampling_params {
+    int32_t     n_prev;
+    int32_t     n_probs;
+    int32_t     min_keep;
+    int32_t     top_k;
+    float       top_p;
+    float       min_p;
+    float       tfs_z;
+    float       typical_p;
+    float       temp;
+    float       dynatemp_range;
+    float       dynatemp_exponent;
+    int32_t     penalty_last_n;
+    float       penalty_repeat;
+    float       penalty_freq;
+    float       penalty_present;
+    int32_t     mirostat;
+    float       mirostat_tau;
+    float       mirostat_eta;
+    bool        penalize_nl;
+    uint32_t    seed;
+} llm_sampling_params;
+
+LLAMA_API void *llm_init_sampling_context(llm_sampling_params parameters);
 LLAMA_API void llm_free_sampling_context(void* ctx);
 int32_t llm_sampling_sample(void* samplingContext, void *llamaContext, int idx);
 void llm_sampling_accept(void *samplingContext, void *llamaContext, int32_t id, bool applyGrammar);
