@@ -50,11 +50,11 @@ void llm_free_sampling_context(void* ctx) {
     llama_sampling_free((struct llama_sampling_context*) ctx);
 }
 
-int32_t llm_sampling_sample(void* samplingContext, void *llamaContext, int idx) {
+int32_t llm_sampling_sample(void* samplingContext, struct llama_context *llamaContext, int idx = -1) {
     return llama_sampling_sample((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, NULL, idx);
 }
 
-void llm_sampling_accept(void *samplingContext, void *llamaContext, int32_t id, bool applyGrammar) {
+void llm_sampling_accept(void *samplingContext, struct llama_context *llamaContext, int32_t id, bool applyGrammar) {
     llama_sampling_accept((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, id, applyGrammar);
 }
 

@@ -54,8 +54,8 @@ typedef struct llm_sampling_params {
 
 LLAMA_API void *llm_init_sampling_context(llm_sampling_params parameters);
 LLAMA_API void llm_free_sampling_context(void* ctx);
-int32_t llm_sampling_sample(void* samplingContext, void *llamaContext, int idx);
-void llm_sampling_accept(void *samplingContext, void *llamaContext, int32_t id, bool applyGrammar);
+int32_t llm_sampling_sample(void* samplingContext, struct llama_context *llamaContext, int idx);
+void llm_sampling_accept(void *samplingContext, struct llama_context *llamaContext, int32_t id, bool applyGrammar);
 void llm_sampling_reset(void *samplingContext);
 
 #ifdef  __cplusplus

@@ -132,9 +132,10 @@ actor LlamaContext {
             llama_batch_add(&batch, tokens_list[i], Int32(i), [0], false)
         }
         batch.logits[Int(batch.n_tokens) - 1] = 1 // true
-
-        if llama_decode(context, batch) != 0 {
-            print("llama_decode() failed")
+        
+        let status = llama_decode(context, batch)
+        if status != 0 {
+            print("llama_decode() failed. Status \(status)")
         }
 
         n_cur = batch.n_tokens
