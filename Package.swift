@@ -3,19 +3,19 @@
 import PackageDescription
 
 var sources = [
-    "ggml.c",
-    "sgemm.cpp",
-    "llama.cpp",
-    "unicode.cpp",
-    "unicode-data.cpp",
-    "ggml-alloc.c",
-    "ggml-backend.c",
-    "ggml-quants.c",
     "common/common.cpp",
     "common/console.cpp",
     "common/grammar-parser.cpp",
     "common/sampling.cpp",
     "common-helper.cpp",
+    "src/llama.cpp",
+    "src/unicode.cpp",
+    "src/unicode-data.cpp",
+    "ggml/src/ggml.c",
+    "ggml/src/ggml-alloc.c",
+    "ggml/src/ggml-backend.c",
+    "ggml/src/ggml-quants.c",
+    "ggml/src/ggml-aarch64.c",
 ]
 
 var resources: [Resource] = []
@@ -32,8 +32,8 @@ var cSettings: [CSetting] =  [
 ]
 
 #if canImport(Darwin)
-sources.append("ggml-metal.m")
-resources.append(.process("ggml-metal.metal"))
+sources.append("ggml/src/ggml-metal.m")
+resources.append(.process("ggml/src/ggml-metal.metal"))
 linkerSettings.append(.linkedFramework("Accelerate"))
 cSettings.append(
     contentsOf: [
@@ -70,8 +70,6 @@ let package = Package(
                "models",
                "tests",
                "CMakeLists.txt",
-               "ggml-cuda.cu",
-               "ggml-cuda.h",
                "Makefile"
             ],
             sources: sources,
