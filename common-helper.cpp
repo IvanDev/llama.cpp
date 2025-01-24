@@ -9,8 +9,8 @@
 #include "common.h"
 #include "sampling.h"
 
-llama_sampling_params getParams(llm_sampling_params params) {
-    llama_sampling_params result = llama_sampling_params();
+common_sampler_params getParams(llm_sampling_params params) {
+    common_sampler_params result = common_sampler_params();
     
     result.n_prev = params.n_prev;
     result.n_probs = params.n_probs;
@@ -18,8 +18,8 @@ llama_sampling_params getParams(llm_sampling_params params) {
     result.top_k = params.top_k;
     result.top_p = params.top_p;
     result.min_p = params.min_p;
-    result.tfs_z = params.tfs_z;
-    result.typical_p = params.typical_p;
+//    result.tfs_z = params.tfs_z;
+    result.typ_p = params.typ_p;
     result.temp = params.temp;
     result.dynatemp_range = params.dynatemp_range;
     result.dynatemp_exponent = params.dynatemp_exponent;
@@ -36,29 +36,32 @@ llama_sampling_params getParams(llm_sampling_params params) {
     return result;
 }
 
-void *llm_init_sampling_context(llm_sampling_params parameters) {
-    llama_sampling_params params = getParams(parameters);
+void *llm_init_sampling_context(const struct llama_model *model, llm_sampling_params parameters) {
+    common_sampler_params params = getParams(parameters);
+    params.print();
+//    llama_sampling_print(params);
+//    llama_sampling_order_print(params);
     
-    llama_sampling_print(params);
-    llama_sampling_order_print(params);
-    
-    struct llama_sampling_context * ctx_sampling = llama_sampling_init(params);
+    struct common_sampler * ctx_sampling = common_sampler_init(model, params);
     return ctx_sampling;
 }
 
 void llm_free_sampling_context(void* ctx) {
-    llama_sampling_free((struct llama_sampling_context*) ctx);
+    common_sampler_free((struct common_sampler*) ctx);
 }
 
 int32_t llm_sampling_sample(void* samplingContext, struct llama_context *llamaContext, int idx = -1) {
-    return llama_sampling_sample((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, NULL, idx);
+    return common_sampler_sample((struct common_sampler *)samplingContext, (struct llama_context*)llamaContext, idx);
+//    return llama_sampling_sample((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, NULL, idx);
 }
 
 void llm_sampling_accept(void *samplingContext, struct llama_context *llamaContext, int32_t id, bool applyGrammar) {
-    llama_sampling_accept((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, id, applyGrammar);
+    return common_sampler_accept((struct common_sampler*)samplingContext, id, applyGrammar);
+//    llama_sampling_accept((struct llama_sampling_context*)samplingContext, (struct llama_context*)llamaContext, id, applyGrammar);
 }
 
 void llm_sampling_reset(void *samplingContext) {
-    llama_sampling_reset((struct llama_sampling_context*)samplingContext);
+    common_sampler_reset((struct common_sampler*)samplingContext);
+//    llama_sampling_reset((struct llama_sampling_context*)samplingContext);
 }
 

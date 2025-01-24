@@ -4,6 +4,7 @@ import PackageDescription
 
 var sources = [
     "common/common.cpp",
+    "common/log.cpp",
     "common/console.cpp",
     "common/grammar-parser.cpp",
     "common/sampling.cpp",

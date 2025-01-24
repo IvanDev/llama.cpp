@@ -365,19 +365,22 @@ bool parse_cpu_mask(const std::string & mask, bool (&boolmask)[GGML_MAX_N_THREAD
 }
 
 void common_init() {
+#ifndef LLAMA_USE_SWIFT
+
     llama_log_set([](ggml_log_level level, const char * text, void * /*user_data*/) {
         if (LOG_DEFAULT_LLAMA <= common_log_verbosity_thold) {
             common_log_add(common_log_main(), level, "%s", text);
         }
     }, NULL);
-
+#endif
 #ifdef NDEBUG
     const char * build_type = "";
 #else
     const char * build_type = " (debug)";
 #endif
-
+#ifndef LLAMA_USE_SWIFT
     LOG_INF("build: %d (%s) with %s for %s%s\n", LLAMA_BUILD_NUMBER, LLAMA_COMMIT, LLAMA_COMPILER, LLAMA_BUILD_TARGET, build_type);
+#endif
 }
 
 std::string common_params_get_system_info(const common_params & params) {
@@ -397,7 +400,6 @@ std::string common_params_get_system_info(const common_params & params) {
 
     return os.str();
 }
-#endif
 
 //
 // String utils
