@@ -52,11 +52,13 @@ endif()
 
 set(TARGET common)
 
-add_library(${TARGET} STATIC
+add_library(${TARGET} 
     arg.cpp
     arg.h
     base64.hpp
     chat-template.hpp
+    common-helper.cpp
+    common-helper.h
     common.cpp
     common.h
     console.cpp
@@ -91,4 +93,6 @@ endif ()
 
 target_include_directories(${TARGET} PUBLIC .)
 target_compile_features   (${TARGET} PUBLIC cxx_std_17)
-target_link_libraries     (${TARGET} PRIVATE ${LLAMA_COMMON_EXTRA_LIBS} PUBLIC llama Threads::Threads)
+target_link_libraries     (${TARGET} PUBLIC ${LLAMA_COMMON_EXTRA_LIBS}  llama Threads::Threads)
+
+install(TARGETS common LIBRARY PUBLIC_HEADER)

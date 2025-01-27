@@ -3,11 +3,11 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
-		1809696D2D05A39F00400EE8 /* llama in Frameworks */ = {isa = PBXBuildFile; productRef = 1809696C2D05A39F00400EE8 /* llama */; };
+		2C2153F72D452D2C005EF72D /* llama in Frameworks */ = {isa = PBXBuildFile; productRef = 2C2153F62D452D2C005EF72D /* llama */; };
 		549479CB2AC9E16000E0F78B /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 549479CA2AC9E16000E0F78B /* Metal.framework */; };
 		79E1D9CD2B4CD16E005F8E46 /* InputButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79E1D9CC2B4CD16E005F8E46 /* InputButton.swift */; };
 		7FA3D2B32B2EA2F600543F92 /* DownloadButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FA3D2B22B2EA2F600543F92 /* DownloadButton.swift */; };
@@ -22,6 +22,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		2C2153D32D4523C2005EF72D /* libggml-metal.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libggml-metal.dylib"; path = "../../../../../../../../usr/local/lib/libggml-metal.dylib"; sourceTree = "<group>"; };
+		2C2153D42D4523C2005EF72D /* libcommon.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libcommon.dylib; path = ../../../../../../../../usr/local/lib/libcommon.dylib; sourceTree = "<group>"; };
+		2C2153D52D4523C2005EF72D /* libggml-cpu.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libggml-cpu.dylib"; path = "../../../../../../../../usr/local/lib/libggml-cpu.dylib"; sourceTree = "<group>"; };
+		2C2153D62D4523C2005EF72D /* libllama.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libllama.dylib; path = ../../../../../../../../usr/local/lib/libllama.dylib; sourceTree = "<group>"; };
+		2C2153D72D4523C2005EF72D /* libggml-base.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libggml-base.dylib"; path = "../../../../../../../../usr/local/lib/libggml-base.dylib"; sourceTree = "<group>"; };
+		2C2153D82D4523C2005EF72D /* libggml.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libggml.dylib; path = ../../../../../../../../usr/local/lib/libggml.dylib; sourceTree = "<group>"; };
+		2C2153F22D452514005EF72D /* libggml-blas.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libggml-blas.dylib"; path = "../../../../../../../../usr/local/lib/libggml-blas.dylib"; sourceTree = "<group>"; };
 		549479CA2AC9E16000E0F78B /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		79E1D9CC2B4CD16E005F8E46 /* InputButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputButton.swift; sourceTree = "<group>"; };
 		7FA3D2B22B2EA2F600543F92 /* DownloadButton.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DownloadButton.swift; sourceTree = "<group>"; };
@@ -33,7 +40,6 @@
 		8A3F84232AC4C891005E2EE8 /* models */ = {isa = PBXFileReference; lastKnownFileType = folder; name = models; path = llama.swiftui/Resources/models; sourceTree = "<group>"; };
 		8A907F322AC7134E006146EA /* LibLlama.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibLlama.swift; sourceTree = "<group>"; };
 		8A9F7C4C2AC332EE008AE1EA /* LlamaState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaState.swift; sourceTree = "<group>"; };
-		DF2D2FE72B4A59BE00FCB72D /* llama.cpp */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = llama.cpp; path = ../..; sourceTree = "<group>"; };
 		F1FE20E12B465EC900B45541 /* LoadCustomButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadCustomButton.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -42,7 +48,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1809696D2D05A39F00400EE8 /* llama in Frameworks */,
+				2C2153F72D452D2C005EF72D /* llama in Frameworks */,
 				549479CB2AC9E16000E0F78B /* Metal.framework in Frameworks */,
 				8A39BE0A2AC7601100BFEB40 /* Accelerate.framework in Frameworks */,
 			);
@@ -54,7 +60,6 @@
 		8A1C836A2AC328BD0096AF73 = {
 			isa = PBXGroup;
 			children = (
-				DF2D2FE72B4A59BE00FCB72D /* llama.cpp */,
 				8A907F312AC7134E006146EA /* llama.cpp.swift */,
 				8A3F84232AC4C891005E2EE8 /* models */,
 				8A1C83752AC328BD0096AF73 /* llama.swiftui */,
@@ -86,6 +91,13 @@
 		8A39BE082AC7601000BFEB40 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				2C2153F22D452514005EF72D /* libggml-blas.dylib */,
+				2C2153D42D4523C2005EF72D /* libcommon.dylib */,
+				2C2153D82D4523C2005EF72D /* libggml.dylib */,
+				2C2153D72D4523C2005EF72D /* libggml-base.dylib */,
+				2C2153D52D4523C2005EF72D /* libggml-cpu.dylib */,
+				2C2153D32D4523C2005EF72D /* libggml-metal.dylib */,
+				2C2153D62D4523C2005EF72D /* libllama.dylib */,
 				549479CA2AC9E16000E0F78B /* Metal.framework */,
 				8A39BE092AC7601000BFEB40 /* Accelerate.framework */,
 			);
@@ -151,7 +163,8 @@
 			);
 			name = llama.swiftui;
 			packageProductDependencies = (
-				1809696C2D05A39F00400EE8 /* llama */,
+				2C2153F02D4524CC005EF72D /* llama */,
+				2C2153F62D452D2C005EF72D /* llama */,
 			);
 			productName = llama.swiftui;
 			productReference = 8A1C83732AC328BD0096AF73 /* llama.swiftui.app */;
@@ -183,6 +196,7 @@
 			);
 			mainGroup = 8A1C836A2AC328BD0096AF73;
 			packageReferences = (
+				2C2153F52D452D2C005EF72D /* XCLocalSwiftPackageReference "../../../llama.cpp" */,
 			);
 			productRefGroup = 8A1C83742AC328BD0096AF73 /* Products */;
 			projectDirPath = "";
@@ -349,7 +363,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = K5UQJPP73A;
+				DEVELOPMENT_TEAM = ALN55TK8ZZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -363,7 +377,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bachittle.llama-swift";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.sdfsdfbachittle.llama-swift";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -381,7 +395,7 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = K5UQJPP73A;
+				DEVELOPMENT_TEAM = ALN55TK8ZZ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -395,7 +409,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "com.bachittle.llama-swift";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.sdfsdfbachittle.llama-swift";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator xros xrsimulator";
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -428,8 +442,19 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		2C2153F52D452D2C005EF72D /* XCLocalSwiftPackageReference "../../../llama.cpp" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../../llama.cpp;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
-		1809696C2D05A39F00400EE8 /* llama */ = {
+		2C2153F02D4524CC005EF72D /* llama */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = llama;
+		};
+		2C2153F62D452D2C005EF72D /* llama */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = llama;
 		};

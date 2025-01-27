@@ -9,8 +9,8 @@
 #include "common.h"
 #include "sampling.h"
 
-common_sampler_params getParams(llm_sampling_params params) {
-    common_sampler_params result = common_sampler_params();
+common_params_sampling getParams(llm_sampling_params params) {
+    common_params_sampling result = common_params_sampling();
     
     result.n_prev = params.n_prev;
     result.n_probs = params.n_probs;
@@ -30,14 +30,14 @@ common_sampler_params getParams(llm_sampling_params params) {
     result.mirostat = params.mirostat;
     result.mirostat_tau = params.mirostat_tau;
     result.mirostat_eta = params.mirostat_eta;
-    result.penalize_nl = params.penalize_nl;
+    // result.penalize_nl = params.penalize_nl;
     result.seed = params.seed;
     
     return result;
 }
 
 void *llm_init_sampling_context(const struct llama_model *model, llm_sampling_params parameters) {
-    common_sampler_params params = getParams(parameters);
+    common_params_sampling params = getParams(parameters);
     params.print();
 //    llama_sampling_print(params);
 //    llama_sampling_order_print(params);

@@ -288,13 +288,13 @@ static bool common_params_parse_ex(int argc, char ** argv, common_params_context
                 arg.c_str(), e.what(), arg_to_options[arg]->to_string().c_str()));
         }
     }
-
+#ifndef LLAMA_USE_SWIFT
     postprocess_cpu_params(params.cpuparams,       nullptr);
     postprocess_cpu_params(params.cpuparams_batch, &params.cpuparams);
 
     postprocess_cpu_params(params.speculative.cpuparams,       &params.cpuparams);
     postprocess_cpu_params(params.speculative.cpuparams_batch, &params.cpuparams_batch);
-
+#endif
     if (params.prompt_cache_all && (params.interactive || params.interactive_first)) {
         throw std::invalid_argument("error: --prompt-cache-all not supported in interactive mode yet\n");
     }
@@ -477,7 +477,7 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     };
 
-
+#ifndef LLAMA_USE_SWIFT
     add_opt(common_arg(
         {"-h", "--help", "--usage"},
         "print usage and exit",
@@ -2310,6 +2310,6 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
             params.vocoder.hf_file = "WavTokenizer-Large-75-F16.gguf";
         }
     ).set_examples({LLAMA_EXAMPLE_TTS}));
-
+#endif
     return ctx_arg;
 }
