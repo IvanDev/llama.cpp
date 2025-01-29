@@ -85,6 +85,7 @@ LLAMA_API void llm_free_sampling_context(void* ctx);
 int32_t llm_sampling_sample(void* samplingContext, struct llama_context *llamaContext, int idx);
 void llm_sampling_accept(void *samplingContext, struct llama_context *llamaContext, int32_t id, bool applyGrammar);
 void llm_sampling_reset(void *samplingContext);
+const char *llm_model_info(const char *model_file_name);
 
 #ifdef  __cplusplus
 }
