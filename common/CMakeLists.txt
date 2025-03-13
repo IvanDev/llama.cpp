@@ -56,7 +56,6 @@ add_library(${TARGET}
     arg.cpp
     arg.h
     base64.hpp
-    chat-template.hpp
     common-helper.cpp
     common-helper.h
     chat.cpp
