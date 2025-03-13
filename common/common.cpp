@@ -10,9 +10,7 @@
 // Change JSON_ASSERT from assert() to GGML_ASSERT:
 #define JSON_ASSERT GGML_ASSERT
 #include "json.hpp"
-#include "json-schema-to-grammar.h"
 #include "llama.h"
-#include "chat-template.hpp"
 
 #include <algorithm>
 #include <cinttypes>
@@ -488,6 +486,11 @@ void string_replace_all(std::string & s, const std::string & search, const std::
     s = std::move(builder);
 }
 
+std::string regex_escape(const std::string & s) {
+    static const std::regex special_chars("[.^$|()*+?\\[\\]{}\\\\]");
+    return std::regex_replace(s, special_chars, "\\$0");
+}
+
 std::string string_join(const std::vector<std::string> & values, const std::string & separator) {
     std::ostringstream result;
     for (size_t i = 0; i < values.size(); ++i) {
@@ -956,8 +959,8 @@ struct common_init_result common_init_from_params(common_params & params) {
         return iparams;
     }
 
-    if (params.ctx_shift && !llama_kv_cache_can_shift(lctx)) {
-        LOG_WRN("%s: KV cache shifting is not supported for this model, disabling KV cache shifting\n", __func__);
+    if (params.ctx_shift && !llama_kv_self_can_shift(lctx)) {
+        LOG_WRN("%s: KV cache shifting is not supported for this context, disabling KV cache shifting\n", __func__);
         params.ctx_shift = false;
     }
 
@@ -1061,7 +1064,7 @@ struct common_init_result common_init_from_params(common_params & params) {
         if (llama_model_has_decoder(model)) {
             llama_decode(lctx, llama_batch_get_one(tmp.data(), std::min(tmp.size(), (size_t) params.n_batch)));
         }
-        llama_kv_cache_clear(lctx);
+        llama_kv_self_clear(lctx);
         llama_synchronize(lctx);
         llama_perf_context_reset(lctx);
     }
@@ -1772,156 +1775,6 @@ std::string common_detokenize(const struct llama_vocab * vocab, const std::vecto
 }
 
 //
-// Chat template utils
-//
-
-bool common_chat_verify_template(const std::string & tmpl, bool use_jinja) {
-    if (use_jinja) {
-        try {
-            auto chat_template = minja::chat_template(tmpl, "<s>", "</s>");
-            chat_template.apply({{
-                {"role", "user"},
-                {"content", "test"},
-            }}, json(), true);
-            return true;
-        } catch (const std::exception & e) {
-            LOG_ERR("%s: failed to apply template: %s\n", __func__, e.what());
-            return false;
-        }
-    }
-    llama_chat_message chat[] = {{"user", "test"}};
-    const int res = llama_chat_apply_template(tmpl.c_str(), chat, 1, true, nullptr, 0);
-    return res >= 0;
-}
-
-std::string common_chat_apply_template(
-        const common_chat_template & tmpl,
-        const std::vector<common_chat_msg> & msgs,
-        bool add_ass,
-        bool use_jinja) {
-    if (use_jinja) {
-        auto messages = json::array();
-        for (const auto & msg : msgs) {
-            messages.push_back({{"role", msg.role}, {"content", msg.content}});
-        }
-        return tmpl.apply(messages, /* tools= */ json(), add_ass);
-    }
-
-    int alloc_size = 0;
-    std::vector<llama_chat_message> chat;
-    for (const auto & msg : msgs) {
-        chat.push_back({msg.role.c_str(), msg.content.c_str()});
-        alloc_size += (msg.role.size() + msg.content.size()) * 1.25;
-    }
-
-    std::vector<char> buf(alloc_size);
-
-    // run the first time to get the total output length
-    int32_t res = llama_chat_apply_template(tmpl.source().c_str(), chat.data(), chat.size(), add_ass, buf.data(), buf.size());
-
-    // error: chat template is not supported
-    if (res < 0) {
-        // if the custom "tmpl" is not supported, we throw an error
-        // this is a bit redundant (for good), since we're not sure if user validated the custom template with llama_chat_verify_template()
-        throw std::runtime_error("this custom template is not supported");
-    }
-
-    // if it turns out that our buffer is too small, we resize it
-    if ((size_t) res > buf.size()) {
-        buf.resize(res);
-        res = llama_chat_apply_template(tmpl.source().c_str(), chat.data(), chat.size(), add_ass, buf.data(), buf.size());
-    }
-
-    std::string formatted_chat(buf.data(), res);
-    return formatted_chat;
-}
-
-std::string common_chat_format_single(
-        const common_chat_template & tmpl,
-        const std::vector<common_chat_msg> & past_msg,
-        const common_chat_msg & new_msg,
-        bool add_ass,
-        bool use_jinja) {
-    std::ostringstream ss;
-    auto fmt_past_msg = past_msg.empty() ? "" : common_chat_apply_template(tmpl, past_msg, false, use_jinja);
-    std::vector<common_chat_msg> chat_new(past_msg);
-    // if the past_msg ends with a newline, we must preserve it in the formatted version
-    if (add_ass && !fmt_past_msg.empty() && fmt_past_msg.back() == '\n') {
-        ss << "\n";
-    };
-    // format chat with new_msg
-    chat_new.push_back(new_msg);
-    auto fmt_new_msg = common_chat_apply_template(tmpl, chat_new, add_ass, use_jinja);
-    // get the diff part
-    ss << fmt_new_msg.substr(fmt_past_msg.size(), fmt_new_msg.size() - fmt_past_msg.size());
-    return ss.str();
-}
-
-std::string common_chat_format_example(const common_chat_template & tmpl, bool use_jinja) {
-    std::vector<common_chat_msg> msgs = {
-        {"system",    "You are a helpful assistant"},
-        {"user",      "Hello"},
-        {"assistant", "Hi there"},
-        {"user",      "How are you?"},
-    };
-    return common_chat_apply_template(tmpl, msgs, true, use_jinja);
-}
-
-common_chat_templates common_chat_templates_from_model(const struct llama_model * model, const std::string & chat_template_override)
-{
-    auto vocab = llama_model_get_vocab(model);
-    std::string default_template_src = chat_template_override;
-    std::string template_tool_use_src = chat_template_override;
-    bool has_explicit_template = !chat_template_override.empty();
-    if (chat_template_override.empty()) {
-        auto str = llama_model_chat_template(model, /* name */ nullptr);
-        if (str) {
-            default_template_src = str;
-            has_explicit_template = true;
-        }
-        str = llama_model_chat_template(model, /* name */ "tool_use");
-        if (str) {
-            template_tool_use_src = str;
-            has_explicit_template = true;
-        }
-    }
-    if (default_template_src.empty() || default_template_src == "chatml") {
-        if (!template_tool_use_src.empty()) {
-            default_template_src = template_tool_use_src;
-        } else {
-            default_template_src = R"(
-                {%- for message in messages -%}
-                    {{- "<|im_start|>" + message.role + "\n" + message.content + "<|im_end|>\n" -}}
-                {%- endfor -%}
-                {%- if add_generation_prompt -%}
-                    {{- "<|im_start|>assistant\n" -}}
-                {%- endif -%}
-            )";
-        }
-    }
-    const auto get_token = [&](llama_token token, const char * name, const char * jinja_variable_name) {
-        if (token == LLAMA_TOKEN_NULL) {
-            if (default_template_src.find(jinja_variable_name) != std::string::npos
-                || template_tool_use_src.find(jinja_variable_name) != std::string::npos) {
-                LOG_WRN("%s: warning: vocab does not have a %s token, jinja template won't work as intended.\n", __func__, name);
-            }
-            return std::string();
-        } else {
-            return common_token_to_piece(vocab, token, true);
-        }
-    };
-    auto token_bos = get_token(llama_vocab_bos(vocab), "BOS", "bos_token");
-    auto token_eos = get_token(llama_vocab_eos(vocab), "EOS", "eos_token");
-    return {
-        has_explicit_template,
-        std::make_unique<minja::chat_template>(default_template_src, token_bos, token_eos),
-        template_tool_use_src.empty()
-            ? nullptr
-            : std::make_unique<minja::chat_template>(template_tool_use_src, token_bos, token_eos)
-    };
-}
-
-//
 // KV cache utils
 //
 
@@ -2181,215 +2034,25 @@ common_control_vector_data common_control_vector_load(const std::vector<common_c
     return result;
 }
 
-////
-//// YAML utils
-////
-//
-//void yaml_dump_vector_float(FILE * stream, const char * prop_name, const std::vector<float> & data) {
-//    if (data.empty()) {
-//        fprintf(stream, "%s:\n", prop_name);
-//        return;
-//    }
-//
-//    fprintf(stream, "%s: [", prop_name);
-//    for (size_t i = 0; i < data.size() - 1; ++i) {
-//        fprintf(stream, "%e, ", data[i]);
-//    }
-//    fprintf(stream, "%e]\n", data.back());
-//}
-//
-//void yaml_dump_vector_int(FILE * stream, const char * prop_name, const std::vector<int> & data) {
-//    if (data.empty()) {
-//        fprintf(stream, "%s:\n", prop_name);
-//        return;
-//    }
-//
-//    fprintf(stream, "%s: [", prop_name);
-//    for (size_t i = 0; i < data.size() - 1; ++i) {
-//        fprintf(stream, "%d, ", data[i]);
-//    }
-//    fprintf(stream, "%d]\n", data.back());
-//}
-//
-//void yaml_dump_string_multiline(FILE * stream, const char * prop_name, const char * data) {
-//    std::string data_str(data == NULL ? "" : data);
-//
-//    if (data_str.empty()) {
-//        fprintf(stream, "%s:\n", prop_name);
-//        return;
-//    }
-//
-//    size_t pos_start = 0;
-//    size_t pos_found = 0;
-//
-//    if (std::isspace(data_str[0]) || std::isspace(data_str.back())) {
-//        data_str = std::regex_replace(data_str, std::regex("\n"), "\\n");
-//        data_str = std::regex_replace(data_str, std::regex("\""), "\\\"");
-//        data_str = std::regex_replace(data_str, std::regex(R"(\\[^n"])"), R"(\$&)");
-//        data_str = "\"" + data_str + "\"";
-//        fprintf(stream, "%s: %s\n", prop_name, data_str.c_str());
-//        return;
-//    }
-//
-//    if (data_str.find('\n') == std::string::npos) {
-//        fprintf(stream, "%s: %s\n", prop_name, data_str.c_str());
-//        return;
-//    }
-//
-//    fprintf(stream, "%s: |\n", prop_name);
-//    while ((pos_found = data_str.find('\n', pos_start)) != std::string::npos) {
-//        fprintf(stream, "  %s\n", data_str.substr(pos_start, pos_found-pos_start).c_str());
-//        pos_start = pos_found + 1;
-//    }
-//}
-//
-//void yaml_dump_non_result_info(FILE * stream, const common_params & params, const llama_context * lctx,
-//                               const std::string & timestamp, const std::vector<int> & prompt_tokens, const char * model_desc) {
-//    ggml_cpu_init(); // some ARM features are detected at runtime
-//
-//    const auto & sparams = params.sparams;
-//#ifndef LLAMA_USE_SWIFT
-//    fprintf(stream, "build_commit: %s\n",        LLAMA_COMMIT);
-//    fprintf(stream, "build_number: %d\n",        LLAMA_BUILD_NUMBER);
-//#endif
-//    fprintf(stream, "cpu_has_arm_fma: %s\n",     ggml_cpu_has_arm_fma()     ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx: %s\n",         ggml_cpu_has_avx()         ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx_vnni: %s\n",    ggml_cpu_has_avx_vnni()    ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx2: %s\n",        ggml_cpu_has_avx2()        ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx512: %s\n",      ggml_cpu_has_avx512()      ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx512_vbmi: %s\n", ggml_cpu_has_avx512_vbmi() ? "true" : "false");
-//    fprintf(stream, "cpu_has_avx512_vnni: %s\n", ggml_cpu_has_avx512_vnni() ? "true" : "false");
-//    fprintf(stream, "cpu_has_fma: %s\n",         ggml_cpu_has_fma()         ? "true" : "false");
-//    fprintf(stream, "cpu_has_neon: %s\n",        ggml_cpu_has_neon()        ? "true" : "false");
-//    fprintf(stream, "cpu_has_sve: %s\n",         ggml_cpu_has_sve()         ? "true" : "false");
-//    fprintf(stream, "cpu_has_f16c: %s\n",        ggml_cpu_has_f16c()        ? "true" : "false");
-//    fprintf(stream, "cpu_has_fp16_va: %s\n",     ggml_cpu_has_fp16_va()     ? "true" : "false");
-//    fprintf(stream, "cpu_has_riscv_v: %s\n",     ggml_cpu_has_riscv_v()     ? "true" : "false");
-//    fprintf(stream, "cpu_has_wasm_simd: %s\n",   ggml_cpu_has_wasm_simd()   ? "true" : "false");
-//    fprintf(stream, "cpu_has_sse3: %s\n",        ggml_cpu_has_sse3()        ? "true" : "false");
-//    fprintf(stream, "cpu_has_vsx: %s\n",         ggml_cpu_has_vsx()         ? "true" : "false");
-//    fprintf(stream, "cpu_has_matmul_int8: %s\n", ggml_cpu_has_matmul_int8() ? "true" : "false");
-//
-//#ifdef NDEBUG
-//    fprintf(stream, "debug: false\n");
-//#else
-//    fprintf(stream, "debug: true\n");
-//#endif // NDEBUG
-//
-//    fprintf(stream, "model_desc: %s\n", model_desc);
-//    fprintf(stream, "n_vocab: %d  # output size of the final layer, 32001 for some models\n", llama_n_vocab(llama_get_model(lctx)));
-//
-//#ifdef __OPTIMIZE__
-//    fprintf(stream, "optimize: true\n");
-//#else
-//    fprintf(stream, "optimize: false\n");
-//#endif // __OPTIMIZE__
-//
-//    fprintf(stream, "time: %s\n", timestamp.c_str());
-//
-//    fprintf(stream, "\n");
-//    fprintf(stream, "###############\n");
-//    fprintf(stream, "# User Inputs #\n");
-//    fprintf(stream, "###############\n");
-//    fprintf(stream, "\n");
-//
-//    fprintf(stream, "alias: %s # default: unknown\n", params.model_alias.c_str());
-//    fprintf(stream, "batch_size: %d # default: 512\n", params.n_batch);
-//    fprintf(stream, "chunks: %d # default: -1 (unlimited)\n", params.n_chunks);
-//    fprintf(stream, "color: %s # default: false\n", params.use_color ? "true" : "false");
-//    fprintf(stream, "ctx_size: %d # default: 512\n", params.n_ctx);
-//    fprintf(stream, "dry_allowed_length: %d # default: 2\n", sparams.dry_allowed_length);
-//    fprintf(stream, "dry_base: %.2f # default: 1.75\n", sparams.dry_base);
-//    fprintf(stream, "dry_multiplier: %.1f # default: 0.0\n", sparams.dry_multiplier);
-//    fprintf(stream, "dry_penalty_last_n: %d # default: -1 (0 = disable, -1 = context size)\n", sparams.dry_penalty_last_n);
-//    fprintf(stream, "escape: %s # default: false\n", params.escape ? "true" : "false");
-//    fprintf(stream, "file: # never logged, see prompt instead. Can still be specified for input.\n");
-//    fprintf(stream, "frequency_penalty: %f # default: 0.0 \n", sparams.penalty_freq);
-//    yaml_dump_string_multiline(stream, "grammar", sparams.grammar.c_str());
-//    fprintf(stream, "grammar-file: # never logged, see grammar instead. Can still be specified for input.\n");
-//    fprintf(stream, "hellaswag: %s # default: false\n", params.hellaswag ? "true" : "false");
-//    fprintf(stream, "hellaswag_tasks: %zu # default: 400\n", params.hellaswag_tasks);
-//    fprintf(stream, "ignore_eos: %s # default: false\n", sparams.ignore_eos ? "true" : "false");
-//
-//    yaml_dump_string_multiline(stream, "in_prefix", params.input_prefix.c_str());
-//    fprintf(stream, "in_prefix_bos: %s # default: false\n", params.input_prefix_bos ? "true" : "false");
-//    yaml_dump_string_multiline(stream, "in_suffix", params.input_prefix.c_str());
-//    fprintf(stream, "interactive: %s # default: false\n", params.interactive ? "true" : "false");
-//    fprintf(stream, "interactive_first: %s # default: false\n", params.interactive_first ? "true" : "false");
-//    fprintf(stream, "keep: %d # default: 0\n", params.n_keep);
-//    fprintf(stream, "logdir: %s # default: unset (no logging)\n", params.logdir.c_str());
-//
-//    fprintf(stream, "logit_bias:\n");
-//    for (const auto & logit_bias : sparams.logit_bias) {
-//        fprintf(stream, "  %d: %f", logit_bias.token, logit_bias.bias);
-//    }
-//
-//    fprintf(stream, "lora:\n");
-//    for (auto & la : params.lora_adapters) {
-//        if (la.scale == 1.0f) {
-//            fprintf(stream, "  - %s\n", la.path.c_str());
-//        }
-//    }
-//    fprintf(stream, "lora_scaled:\n");
-//    for (auto & la : params.lora_adapters) {
-//        if (la.scale != 1.0f) {
-//            fprintf(stream, "  - %s: %f\n", la.path.c_str(), la.scale);
-//        }
-//    }
-//    fprintf(stream, "lora_init_without_apply: %s # default: false\n", params.lora_init_without_apply ? "true" : "false");
-//    fprintf(stream, "main_gpu: %d # default: 0\n", params.main_gpu);
-//    fprintf(stream, "min_keep: %d # default: 0 (disabled)\n", sparams.min_keep);
-//    fprintf(stream, "mirostat: %d # default: 0 (disabled)\n", sparams.mirostat);
-//    fprintf(stream, "mirostat_ent: %f # default: 5.0\n", sparams.mirostat_tau);
-//    fprintf(stream, "mirostat_lr: %f # default: 0.1\n", sparams.mirostat_eta);
-//    fprintf(stream, "mlock: %s # default: false\n", params.use_mlock ? "true" : "false");
-//    fprintf(stream, "model: %s # default: %s\n", params.model.c_str(), DEFAULT_MODEL_PATH);
-//    fprintf(stream, "model_draft: %s # default:\n", params.model_draft.c_str());
-//    fprintf(stream, "multiline_input: %s # default: false\n", params.multiline_input ? "true" : "false");
-//    fprintf(stream, "n_gpu_layers: %d # default: -1\n", params.n_gpu_layers);
-//    fprintf(stream, "n_predict: %d # default: -1 (unlimited)\n", params.n_predict);
-//    fprintf(stream, "n_probs: %d # only used by server binary, default: 0\n", sparams.n_probs);
-//    fprintf(stream, "no_mmap: %s # default: false\n", !params.use_mmap ? "true" : "false");
-//    fprintf(stream, "penalize_nl: %s # default: false\n", sparams.penalize_nl ? "true" : "false");
-//    fprintf(stream, "ppl_output_type: %d # default: 0\n", params.ppl_output_type);
-//    fprintf(stream, "ppl_stride: %d # default: 0\n", params.ppl_stride);
-//    fprintf(stream, "presence_penalty: %f # default: 0.0\n", sparams.penalty_present);
-//    yaml_dump_string_multiline(stream, "prompt", params.prompt.c_str());
-//    fprintf(stream, "prompt_cache: %s\n", params.path_prompt_cache.c_str());
-//    fprintf(stream, "prompt_cache_all: %s # default: false\n", params.prompt_cache_all ? "true" : "false");
-//    fprintf(stream, "prompt_cache_ro: %s # default: false\n", params.prompt_cache_ro ? "true" : "false");
-//    yaml_dump_vector_int(stream, "prompt_tokens", prompt_tokens);
-//    fprintf(stream, "repeat_penalty: %f # default: 1.1\n", sparams.penalty_repeat);
-//
-//    fprintf(stream, "reverse_prompt:\n");
-//    for (std::string ap : params.antiprompt) {
-//        size_t pos = 0;
-//        while ((pos = ap.find('\n', pos)) != std::string::npos) {
-//            ap.replace(pos, 1, "\\n");
-//            pos += 1;
-//        }
-//
-//        fprintf(stream, "  - %s\n", ap.c_str());
-//    }
-//
-//    fprintf(stream, "rope_freq_base: %f # default: 10000.0\n", params.rope_freq_base);
-//    fprintf(stream, "rope_freq_scale: %f # default: 1.0\n", params.rope_freq_scale);
-//    fprintf(stream, "simple_io: %s # default: false\n", params.simple_io ? "true" : "false");
-//    fprintf(stream, "cont_batching: %s # default: false\n", params.cont_batching ? "true" : "false");
-//    fprintf(stream, "flash_attn: %s # default: false\n", params.flash_attn ? "true" : "false");
-//    fprintf(stream, "temp: %f # default: 0.8\n", sparams.temp);
-//
-//    const std::vector<float> tensor_split_vector(params.tensor_split, params.tensor_split + llama_max_devices());
-//    yaml_dump_vector_float(stream, "tensor_split", tensor_split_vector);
-//
-//    fprintf(stream, "threads: %d # default: %u\n", params.cpuparams.n_threads, std::thread::hardware_concurrency());
-//    fprintf(stream, "top_k: %d # default: 40\n", sparams.top_k);
-//    fprintf(stream, "top_p: %f # default: 0.95\n", sparams.top_p);
-//    fprintf(stream, "min_p: %f # default: 0.0\n", sparams.min_p);
-//    fprintf(stream, "xtc_probability: %f # default: 0.0\n", sparams.xtc_probability);
-//    fprintf(stream, "xtc_threshold: %f # default: 0.1\n", sparams.xtc_threshold);
-//    fprintf(stream, "typ_p: %f # default: 1.0\n", sparams.typ_p);
-//    fprintf(stream, "verbose_prompt: %s # default: false\n", params.verbose_prompt ? "true" : "false");
-//    fprintf(stream, "display_prompt: %s # default: true\n", params.display_prompt ? "true" : "false");
-//}
+template <>
+json common_grammar_trigger::to_json() const {
+    json out {
+        {"type", (int) type},
+        {"value", value},
+    };
+    if (type == COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN) {
+        out["token"] = (int) token;
+    }
+    return out;
+}
 
+template <>
+common_grammar_trigger common_grammar_trigger::from_json(const json & in) {
+    common_grammar_trigger out;
+    out.type = (common_grammar_trigger_type) in.at("type").get<int>();
+    out.value = in.at("value").get<std::string>();
+    if (out.type == COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN) {
+        out.token = (llama_token) in.at("token").get<int>();
+    }
+    return out;
+}
