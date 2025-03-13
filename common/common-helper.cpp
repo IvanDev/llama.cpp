@@ -106,10 +106,7 @@ const char *llm_model_info(const char *model_file_name) {
 
         return std::string(ss.str());
     };
-    
-    
-        
-    
+
     struct llama_model_params model_params = llama_model_default_params();
     std::string result = "{ ";
     llama_model * model = new llama_model(model_params);
@@ -121,7 +118,7 @@ const char *llm_model_info(const char *model_file_name) {
         result += "\"file_type\": \"" + std::string(ml.ftype_name()) + "\",";
         result += "\"file_size\": " + std::to_string(ml.n_bytes);
         result += "},";
-        
+
         try {
             model->load_arch(ml);
         } catch(const std::exception & e) {
@@ -141,7 +138,7 @@ const char *llm_model_info(const char *model_file_name) {
         model->load_stats(ml);
         result += "\"name\": \"" + model->name + "\",";
         //Model params:
-        
+
         result += "\"description\": \"" + model->desc() + "\",";
 //        LLAMA_LOG_INFO("%s: n_head           = %s\n",     __func__, print_f([&](uint32_t il) { return hparams.n_head(il);    }, hparams.n_layer).c_str());
 
@@ -181,10 +178,13 @@ const char *llm_model_info(const char *model_file_name) {
             result += "\"ssm_d_inner\": " + std::to_string(model->hparams.ssm_d_inner) + ",";
             result += "\"ssm_d_state\": " + std::to_string(model->hparams.ssm_d_state) + ",";
             result += "\"ssm_dt_rank\": " + std::to_string(model->hparams.ssm_dt_rank) + ",";
-            result += "\"ssm_dt_b_c_rms\": " + std::to_string(model->hparams.ssm_dt_b_c_rms);
+            result += "\"ssm_dt_b_c_rms\": " + std::to_string(model->hparams.ssm_dt_b_c_rms) + ",";
+            if (result.back() == ',') {
+                result.pop_back();
+            }
             result += "},";
         }
-        
+
         result += "\"stats\": {";
         result += "\"model_type\": \"" + model->type_name() + "\",";
         size_t n_elements = model->n_elements();
@@ -197,13 +197,13 @@ const char *llm_model_info(const char *model_file_name) {
         } else {
             result += "\"model_params\": \"" + std::to_string(n_elements*1e-3) + "K\",";
         }
-        
-        
+
+
         if (model->arch == LLM_ARCH_DEEPSEEK) {
             result += "\"n_layer_dense_lead\": " + std::to_string(model->hparams.n_layer_dense_lead) + ",";
             result += "\"n_ff_exp\": " + std::to_string(model->hparams.n_ff_exp) + ",";
             result += "\"n_expert_shared\": " + std::to_string(model->hparams.n_expert_shared) + ",";
-            result += "\"expert_weights_scale\": " + std::to_string(model->hparams.expert_weights_scale);
+            result += "\"expert_weights_scale\": " + std::to_string(model->hparams.expert_weights_scale) + ",";
         }
 
         if (model->arch == LLM_ARCH_DEEPSEEK2) {
@@ -215,18 +215,21 @@ const char *llm_model_info(const char *model_file_name) {
             result += "\"expert_weights_scale\": " + std::to_string(model->hparams.expert_weights_scale) + ",";
             result += "\"expert_weights_norm\": " + std::to_string(model->hparams.expert_weights_norm) + ",";
 //            result += "\"expert_gating_func\": \"" + std::string( llama_expert_gating_func_type((enum llama_expert_gating_func_type) model->hparams.expert_gating_func) ) + "\",";
-            result += "\"rope_yarn_log_mul\": " + std::to_string(model->hparams.rope_yarn_log_mul);
+            result += "\"rope_yarn_log_mul\": " + std::to_string(model->hparams.rope_yarn_log_mul) + ",";
         }
 
         if (model->arch == LLM_ARCH_QWEN2MOE) {
             result += "\"n_ff_exp\": " + std::to_string(model->hparams.n_ff_exp) + ",";
-            result += "\"n_ff_shexp\": " + std::to_string(model->hparams.n_ff_shexp);
+            result += "\"n_ff_shexp\": " + std::to_string(model->hparams.n_ff_shexp) + ",";
         }
 
         if (model->arch == LLM_ARCH_MINICPM || model->arch == LLM_ARCH_GRANITE || model->arch == LLM_ARCH_GRANITE_MOE) {
             result += "\"f_embedding_scale\": " + std::to_string(model->hparams.f_embedding_scale) + ",";
             result += "\"f_residual_scale\": " + std::to_string(model->hparams.f_residual_scale) + ",";
-            result += "\"f_attention_scale\": " + std::to_string(model->hparams.f_attention_scale);
+            result += "\"f_attention_scale\": " + std::to_string(model->hparams.f_attention_scale) + ",";
+        }
+        if (result.back() == ',') {
+            result.pop_back();
         }
         result += "},";// stats
         //vocab
@@ -239,7 +242,7 @@ const char *llm_model_info(const char *model_file_name) {
 //        LLAMA_LOG_INFO("%s: n_vocab          = %u\n",     __func__, vocab.n_tokens());
 //        LLAMA_LOG_INFO("%s: n_merges         = %u\n",     __func__, (uint32_t) bpe_ranks.size());
         result += "},";
-        
+
         result += "\"tokens\": {";
         if (vocab.token_bos() != LLAMA_TOKEN_NULL) {
             result += "\"BOS\": \"" + std::string(vocab.token_get_text(vocab.token_bos())) + "\",";
@@ -274,15 +277,18 @@ const char *llm_model_info(const char *model_file_name) {
         if (vocab.token_middle() != LLAMA_TOKEN_NULL) {
             result += "\"FIM_MID\": \"" + std::string(vocab.token_get_text(vocab.token_middle())) + "\",";
         }
-        result += "\"max_token_len\": " + std::to_string(vocab.max_token_len());
+        result += "\"max_token_len\": " + std::to_string(vocab.max_token_len()) + ",";
+        if (result.back() == ',') {
+            result.pop_back();
+        }
         result += "}";
-        
+
     } catch (const std::exception & e) {
         LLAMA_LOG_ERROR("%s: %s\n", __func__, e.what());
         delete model;
         return "{}";
     }
-    
+
     delete model;
     result += "}";
     return strdup(result.c_str());
