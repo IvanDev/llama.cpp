@@ -87,6 +87,10 @@ void llm_sampling_accept(void *samplingContext, struct llama_context *llamaConte
 void llm_sampling_reset(void *samplingContext);
 const char *llm_model_info(const char *model_file_name);
 
+void llm_free_clip_context(void *ctx);
+void *llm_init_clip_context(const char *fname, bool use_gpu, const int verbosity);
+int llm_gemma_eval_image(struct llama_model *model, struct llama_context *lctx, void *p_ctx_clip, int n_threads, int *n_past, const char *image_path);
+
 #ifdef  __cplusplus
 }
 #endif

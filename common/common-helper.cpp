@@ -10,7 +10,10 @@
 #include "sampling.h"
 #include "llama-model-loader.h"
 #include "llama-model.h"
-
+#include "stb_image.h"
+#include "clip/clip.h"
+#include "log.h"
+#include <limits.h>
 
 common_params_sampling getParams(llm_sampling_params params) {
     common_params_sampling result = common_params_sampling();
@@ -41,7 +44,7 @@ common_params_sampling getParams(llm_sampling_params params) {
 
 void *llm_init_sampling_context(const struct llama_model *model, llm_sampling_params parameters) {
     common_params_sampling params = getParams(parameters);
-    params.print();
+//    params.print();
 //    llama_sampling_print(params);
 //    llama_sampling_order_print(params);
     
@@ -66,6 +69,106 @@ void llm_sampling_accept(void *samplingContext, struct llama_context *llamaConte
 void llm_sampling_reset(void *samplingContext) {
     common_sampler_reset((struct common_sampler*)samplingContext);
 //    llama_sampling_reset((struct llama_sampling_context*)samplingContext);
+}
+
+struct decode_embd_batch {
+    std::vector<llama_pos>      pos;
+    std::vector<int32_t>        n_seq_id;
+    std::vector<llama_seq_id>   seq_id_0;
+    std::vector<llama_seq_id *> seq_ids;
+    std::vector<int8_t>         logits;
+    llama_batch batch;
+    decode_embd_batch(float * embd, int32_t n_tokens, llama_pos pos_0, llama_seq_id seq_id) {
+        pos     .resize(n_tokens);
+        n_seq_id.resize(n_tokens);
+        seq_ids .resize(n_tokens + 1);
+        logits  .resize(n_tokens);
+        seq_id_0.resize(1);
+        seq_id_0[0] = seq_id;
+        seq_ids [n_tokens] = nullptr;
+        batch = {
+            /*n_tokens       =*/ n_tokens,
+            /*tokens         =*/ nullptr,
+            /*embd           =*/ embd,
+            /*pos            =*/ pos.data(),
+            /*n_seq_id       =*/ n_seq_id.data(),
+            /*seq_id         =*/ seq_ids.data(),
+            /*logits         =*/ logits.data(),
+        };
+        for (int i = 0; i < n_tokens; i++) {
+            batch.pos     [i] = pos_0 + i;
+            batch.n_seq_id[i] = 1;
+            batch.seq_id  [i] = seq_id_0.data();
+            batch.logits  [i] = false;
+        }
+    }
+};
+
+void *llm_init_clip_context(const char *fname, bool use_gpu, const int verbosity = 1) {
+    return clip_init(fname, clip_context_params {
+        use_gpu,
+        verbosity
+    });
+}
+
+void llm_free_clip_context(void *ctx) {
+    clip_free((struct clip_ctx *)ctx);
+}
+
+int llm_gemma_eval_image(struct llama_model *model, struct llama_context *lctx, void *p_ctx_clip, int n_threads, int *n_past, const char *image_path) {
+    struct clip_ctx  *ctx_clip = (struct clip_ctx *)p_ctx_clip;
+    std::string image_path_str = std::string(image_path);
+    std::vector<float> image_embd_v;
+    int n_embd = llama_model_n_embd(model);
+    int n_tokens = 256;
+    image_embd_v.resize(n_tokens * n_embd);
+
+    bool ok;
+    struct clip_image_u8 * img_u8 = clip_image_u8_init();
+    ok = clip_image_load_from_file(image_path_str.c_str(), img_u8);
+    if (!ok) {
+        LOG_ERR("Unable to load image %s\n", image_path_str.c_str());
+        clip_image_u8_free(img_u8);
+        return 2; // non-fatal error
+    }
+
+    clip_image_f32_batch batch_f32;
+    ok = clip_image_preprocess(ctx_clip, img_u8, &batch_f32);
+    if (!ok) {
+        LOG_ERR("Unable to preprocess image\n");
+        clip_image_f32_batch_free(&batch_f32);
+        clip_image_u8_free(img_u8);
+        return 1;
+    }
+
+    int64_t t0 = ggml_time_ms();
+    LOG("Encoding image %s\n", image_path_str.c_str());
+    ok = clip_image_batch_encode(ctx_clip, n_threads, &batch_f32, image_embd_v.data());
+    if (!ok) {
+        LOG_ERR("Unable to encode image\n");
+        clip_image_f32_batch_free(&batch_f32);
+        clip_image_u8_free(img_u8);
+        return 1;
+    }
+//    LOG("Image encoded in %" PRId64 " ms\n", ggml_time_ms() - t0);
+
+    clip_image_f32_batch_free(&batch_f32);
+    clip_image_u8_free(img_u8);
+
+    // decode image embeddings
+    int64_t t1 = ggml_time_ms();
+//    eval_text(ctx, "<start_of_image>");
+    llama_set_causal_attn(lctx, false);
+    decode_embd_batch batch_img(image_embd_v.data(), n_tokens, *n_past, 0);
+    if (llama_decode(lctx, batch_img.batch)) {
+        LOG_ERR("failed to decode image\n");
+        return 1;
+    }
+    (*n_past) += n_tokens;
+    llama_set_causal_attn(lctx, true);
+//    eval_text(ctx, "<end_of_image>");
+//    LOG("Image decoded in %" PRId64 " ms\n", ggml_time_ms() - t1);
+    return 0;
 }
 
 const std::string val_array(std::string prefix, std::array<uint32_t, LLAMA_MAX_LAYERS> v, int max) {

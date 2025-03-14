@@ -56,6 +56,8 @@ add_library(${TARGET}
     arg.cpp
     arg.h
     base64.hpp
+    clip/clip.h
+    clip/clip.cpp
     common-helper.cpp
     common-helper.h
     chat.cpp
