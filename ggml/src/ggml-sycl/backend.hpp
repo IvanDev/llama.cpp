@@ -13,6 +13,7 @@
 #ifndef GGML_SYCL_BACKEND_HPP
 #define GGML_SYCL_BACKEND_HPP
 
+#include "binbcast.hpp"
 #include "concat.hpp"
 #include "common.hpp"
 #include "conv.hpp"
@@ -26,7 +27,7 @@
 #include "softmax.hpp"
 #include "tsembd.hpp"
 #include "im2col.hpp"
-#include "wkv6.hpp"
+#include "wkv.hpp"
 #include "outprod.hpp"
 #include "element_wise.hpp"
 #include "cpy.hpp"

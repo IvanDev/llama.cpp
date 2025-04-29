@@ -43,6 +43,11 @@ COMMON_CMAKE_ARGS=(
     -DLLAMA_BUILD_COMMON=${LLAMA_BUILD_COMMON}
 )
 
+XCODE_VERSION=$(xcodebuild -version 2>/dev/null | head -n1 | awk '{ print $2 }')
+MAJOR_VERSION=$(echo $XCODE_VERSION | cut -d. -f1)
+MINOR_VERSION=$(echo $XCODE_VERSION | cut -d. -f2)
+echo "Detected Xcode version: $XCODE_VERSION"
+
 check_required_tool() {
     local tool=$1
     local install_message=$2
@@ -332,21 +337,28 @@ combine_static_libraries() {
 
     # Platform-specific post-processing for device builds
     if [[ "$is_simulator" == "false" ]]; then
-        if command -v vtool &>/dev/null; then
+        if command -v xcrun vtool &>/dev/null; then
             case "$platform" in
                 "ios")
                     echo "Marking binary as a framework binary for iOS..."
-                    vtool -set-build-version ios ${IOS_MIN_OS_VERSION} ${IOS_MIN_OS_VERSION} -replace \
+                    xcrun vtool -set-build-version ios ${IOS_MIN_OS_VERSION} ${IOS_MIN_OS_VERSION} -replace \
                         -output "${base_dir}/${output_lib}" "${base_dir}/${output_lib}"
                     ;;
                 "visionos")
                     echo "Marking binary as a framework binary for visionOS..."
-                    vtool -set-build-version xros ${VISIONOS_MIN_OS_VERSION} ${VISIONOS_MIN_OS_VERSION} -replace \
+                    if [[ "$MAJOR_VERSION" -gt 16 ]] || [[ "$MAJOR_VERSION" -eq 16 && "$MINOR_VERSION" -gt 2 ]]; then
+                        echo "Xcode version greater than 16.2, using visionOS."
+                        VISION_OS_BUILD_VERSION="visionos"
+                    else
+                        echo "Xcode version less than or equal to 16.2, using xros."
+                        VISION_OS_BUILD_VERSION="xros"
+                    fi
+                    xcrun vtool -set-build-version ${VISION_OS_BUILD_VERSION} ${VISIONOS_MIN_OS_VERSION} ${VISIONOS_MIN_OS_VERSION} -replace \
                         -output "${base_dir}/${output_lib}" "${base_dir}/${output_lib}"
                     ;;
                 "tvos")
                     echo "Marking binary as a framework binary for tvOS..."
-                    vtool -set-build-version tvos ${TVOS_MIN_OS_VERSION} ${TVOS_MIN_OS_VERSION} -replace \
+                    xcrun vtool -set-build-version tvos ${TVOS_MIN_OS_VERSION} ${TVOS_MIN_OS_VERSION} -replace \
                         -output "${base_dir}/${output_lib}" "${base_dir}/${output_lib}"
                     ;;
             esac
@@ -406,6 +418,7 @@ cmake -B build-ios-sim -G Xcode \
     -DCMAKE_XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS=iphonesimulator \
     -DCMAKE_C_FLAGS="${COMMON_C_FLAGS}" \
     -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
+    -DLLAMA_CURL=OFF \
     -S .
 cmake --build build-ios-sim --config Release -- -quiet
 
@@ -418,6 +431,7 @@ cmake -B build-ios-device -G Xcode \
     -DCMAKE_XCODE_ATTRIBUTE_SUPPORTED_PLATFORMS=iphoneos \
     -DCMAKE_C_FLAGS="${COMMON_C_FLAGS}" \
     -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
+    -DLLAMA_CURL=OFF \
     -S .
 cmake --build build-ios-device --config Release -- -quiet
 #
@@ -485,6 +499,7 @@ cmake --build build-ios-device --config Release -- -quiet
 #    -DCMAKE_CXX_FLAGS="${COMMON_CXX_FLAGS}" \
 #    -S .
 #cmake --build build-tvos-device --config Release -- -quiet
+
 
 # Setup frameworks and copy binaries and headers
 echo "Setting up framework structures..."
