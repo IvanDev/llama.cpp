@@ -8,8 +8,11 @@
 #include "common-helper.h"
 #include "common.h"
 #include "sampling.h"
-#include "llama-model-loader.h"
-#include "llama-model.h"
+#include <llama.h>
+#include <llama-cpp.h>
+#include "../src/llama-model.h"
+#include "../src/llama-model-loader.h"
+
 #include "stb_image.h"
 #include "clip/clip.h"
 #include "log.h"
@@ -215,7 +218,7 @@ const char *llm_model_info(const char *model_file_name) {
     llama_model * model = new llama_model(model_params);
     try {
         std::vector<std::string> splits = {};
-        llama_model_loader ml(fname, splits, model_params.use_mmap, model_params.check_tensors, model_params.kv_overrides);
+        llama_model_loader ml(fname, splits, model_params.use_mmap, model_params.check_tensors, model_params.kv_overrides, nullptr);
         result += "\"model\": {";
         result += "\"file_format\": \"" + std::string(llama_file_version_name(ml.fver)) + "\",";
         result += "\"file_type\": \"" + std::string(ml.ftype_name()) + "\",";

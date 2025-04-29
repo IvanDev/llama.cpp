@@ -114,6 +114,8 @@ setup_framework_structure() {
         local module_path=${build_dir}/framework/${framework_name}.framework/Modules/
     fi
 
+    echo "Header path: ${header_path}"
+
     # Copy all required headers (common for all platforms)
     cp include/llama.h             ${header_path}
 #    cp include/llama-cpp.h             ${header_path}
@@ -434,6 +436,9 @@ cmake -B build-ios-device -G Xcode \
     -DLLAMA_CURL=OFF \
     -S .
 cmake --build build-ios-device --config Release -- -quiet
+
+#Ivan: 
+
 #
 #echo "Building for macOS..."
 #cmake -B build-macos -G Xcode \
